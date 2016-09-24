@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
- # ffmpeg -i $name.mp4 -c:v mjpeg -q:v 3 -an $name.mpg;
-  #ffmpeg -i $name.m -acodec pcm_s16le -ac 2 $name.wav;
+# ffmpeg -i $name.mp4 -c:v mjpeg -q:v 3 -an $name.mpg;
+# ffmpeg -i $name.m -acodec pcm_s16le -ac 2 $name.wav;
 
 import sys, os
 
@@ -11,6 +11,11 @@ def printHelp():
   print "--process <phrase> <directory>\n"
   sys.exit(0);
 
+def ensureDir( f ):
+    d = os.getcwd() + '/' + f
+    if not os.path.exists(d):
+        os.makedirs(d)
+
 if len( sys.argv ) < 3:
   printHelp();
 
@@ -18,9 +23,7 @@ if sys.argv[1] == "--preprocess":
   root = sys.argv[2] + 'source/'
   dirs = os.listdir( root );
   print dirs
-  
-
-elif sys.argv[2] == "--process":
-  pass
+elif sys.argv[1] == "--process":
+  ensureDir( 'words' )
 else:
   printHelp()
