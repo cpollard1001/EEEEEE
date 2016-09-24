@@ -1,20 +1,9 @@
 #!/usr/bin/env python2
 
 import sys, os
-import scipy.io.wavfile
-import scipy.signal
+import scipy.fftpack, scipy.io.wavfile, scipy.signal
 import numpy
 import matplotlib.pyplot as plt
-
-# voice_cmu_us_rms_arctic_clunits
-# voice_cmu_us_bdl_arctic_clunits
-# voice_cmu_us_slt_arctic_clunits
-# voice_cmu_us_clb_arctic_clunits
-# voice_cmu_us_awb_arctic_clunits
-# voice_cmu_us_jmk_arctic_clunits
-# voice_cmu_us_ksp_arctic_clunits
-
-voice = 'voice_cmu_us_rms_arctic_clunits'
 
 def printHelp():
   print "\nUsage"
@@ -27,62 +16,43 @@ def ensureDir( f ):
     if not os.path.exists(d):
         os.makedirs(d)
 
-
-def generateWord( word ):
-  # voice
-  wordsDir = os.getcwd() + '/words/'
-  wavPath = wordsDir + word + '.wav'
-  if os.path.isfile( wavPath ):
-    return scipy.io.wavfile.read( wavPath );
-  inputFile = open( wordsDir + "commands.scm", "w" )
-  inputFile.write( '(' + voice + ')\n' )
-  inputFile.write( '(lex.add.entry \'("<break>" n (((pau ) 0))))\n' )
-  inputFile.write( '(set! utterance (SynthText "' + word + '"))\n' )
-  inputFile.write( '(utt.save.wave utterance "' + wavPath + '")\n' )
-  inputFile.close()
-
-  os.system( 'echo "" | festival_client --withlisp --prolog ' + wordsDir + 'commands.scm --tts_mode fundamental' )
-
-  return scipy.io.wavfile.read( wavPath )
-
 if len( sys.argv ) < 3:
   printHelp();
 
 if sys.argv[1] == "--preprocess":
   root = sys.argv[2] + 'source/'
   dirs = os.listdir( root );
+  # ffmpeg -y -i source/maryland.webm -ss 180 -t 60 -c:v libvpx-vp9 -pix_fmt yuv420p combined.webm
+  # ffmpeg -i combined.webm -acodec pcm_s16le combined.wav
+  # sox combined.wav -r 16000 combined2.wav
+  # sox combined2.wav combined.wav remix 1,2
   print dirs
 elif sys.argv[1] == "--process":
-  if( len( sys.argv ) < 4 ):
-    printHelp()
-  ensureDir( 'words' )
-  words = sys.argv[2].split(" ")
-
-  # get count of each word
-  wordCount = {}
-  wordData = {}
-  for word in words:
-    if word in wordCount:
-      wordCount[ word ] += 1
-    else:
-      wordCount[ word ] = 1
-      wordData[ word ] = generateWord( word )
 
   # load normalized audio file
-  vidDir = os.getcwd() + '/' + sys.argv[3] + '/'
+  vidDir = os.getcwd() + '/' + sys.argv[2] + '/'
 
   combinedAudio = scipy.io.wavfile.read( vidDir + 'combined.wav' );
-
+  transformAmount = 1024
+  end = transformAmount;
+  averages = []
   startTimes = []
   lengthTimes = []
-  for word in words:
-    print 'Correlating: ' + word
-    wordLength = len(wordData[ word ][1]) / 16000.0
-    correlation = numpy.correlate( combinedAudio[1], wordData[ word ][1] )
+  while(end < len(combinedAudio[1])):
+    freqs = scipy.fftpack.fft(combinedAudio[1][end-transformAmount:end], transformAmount)
+    avg = 0
+    for x in xrange(0, transformAmount / 2):
+      avg += x * abs(freqs[x])
+    averages.append(avg)
+    end += 32
 
-    startTime = correlation.argmax(axis=0) / 16000.0
-    startTimes.append( startTime )
-    lengthTimes.append( wordLength )
+  peaks = scipy.signal.find_peaks_cwt(averages, numpy.arange(8000,12000, 4000))
+  print peaks
+  for peak in peaks:
+    startTimes.append(peak * 32 / 16000.0)
+    lengthTimes.append(0.5)
+  plt.plot(averages)
+  plt.show()
 
   combinedVideo = vidDir + 'combined.webm'
   tmpDir = vidDir + 'tmp/'
@@ -90,7 +60,7 @@ elif sys.argv[1] == "--process":
   inputFile = open( tmpDir + "input.txt", "w" )
   for x in xrange(0, len(startTimes)):
     inputFile.write( "file '" + str(x) + ".webm'\n" )
-    os.system( 'ffmpeg -y -i ' + combinedVideo + ' -ss ' + str(startTimes[x]) + ' -t ' + str(lengthTimes[x]) + ' -c copy ' + tmpDir + str(x) + '.webm' )
+    os.system( 'ffmpeg -y -i ' + combinedVideo + ' -ss ' + str(startTimes[x]) + ' -t ' + str(lengthTimes[x]) + ' -pix_fmt yuv420p ' + tmpDir + str(x) + '.webm' )
   inputFile.close()
 
   print startTimes
