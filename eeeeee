@@ -2,6 +2,16 @@
 
 import sys, os
 
+# voice_cmu_us_rms_arctic_clunits
+# voice_cmu_us_bdl_arctic_clunits
+# voice_cmu_us_slt_arctic_clunits
+# voice_cmu_us_clb_arctic_clunits
+# voice_cmu_us_awb_arctic_clunits
+# voice_cmu_us_jmk_arctic_clunits
+# voice_cmu_us_ksp_arctic_clunits
+
+voice = 'voice_cmu_us_rms_arctic_clunits'
+
 def printHelp():
   print "\nUsage"
   print "--preprocess <directory>"
@@ -12,6 +22,24 @@ def ensureDir( f ):
     d = os.getcwd() + '/' + f
     if not os.path.exists(d):
         os.makedirs(d)
+
+
+def generateWord( word ):
+  # voice
+  wordsDir = os.getcwd() + '/words/'
+  wavPath = wordsDir + word + '.wav'
+  if os.path.isfile( wavPath ):
+    return;
+  inputFile = open( wordsDir + "commands.scm", "w" )
+  inputFile.write( '(' + voice + ')\n' )
+  inputFile.write( '(lex.add.entry \'("<break>" n (((pau ) 0))))\n' )
+  inputFile.write( '(set! utterance (SynthText "' + word + '"))\n' )
+  inputFile.write( '(utt.save.wave utterance "' + wavPath + '")\n' )
+  inputFile.close()
+
+  os.system( 'echo "" | festival_client --withlisp --prolog ' + wordsDir + 'commands.scm --tts_mode fundamental' )
+
+  print word
 
 if len( sys.argv ) < 3:
   printHelp();
@@ -25,12 +53,15 @@ elif sys.argv[1] == "--process":
     printHelp()
   ensureDir( 'words' )
   words = sys.argv[2].split(" ")
+
+  # get count of each word
   wordCount = {}
   for word in words:
     if word in wordCount:
       wordCount[ word ] += 1
     else:
       wordCount[ word ] = 1
-  print wordCount
+      generateWord( word )
+
 else:
   printHelp()
