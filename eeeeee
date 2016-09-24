@@ -1,8 +1,5 @@
 #!/usr/bin/env python2
 
-# ffmpeg -i $name.mp4 -c:v mjpeg -q:v 3 -an $name.mpg;
-# ffmpeg -i $name.m -acodec pcm_s16le -ac 2 $name.wav;
-
 import sys, os
 
 def printHelp():
@@ -24,6 +21,16 @@ if sys.argv[1] == "--preprocess":
   dirs = os.listdir( root );
   print dirs
 elif sys.argv[1] == "--process":
+  if( len( sys.argv ) < 4 ):
+    printHelp()
   ensureDir( 'words' )
+  words = sys.argv[2].split(" ")
+  wordCount = {}
+  for word in words:
+    if word in wordCount:
+      wordCount[ word ] += 1
+    else:
+      wordCount[ word ] = 1
+  print wordCount
 else:
   printHelp()
