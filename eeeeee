@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-import sys
+import sys, os
 
 def printHelp():
   print "\nUsage"
@@ -8,11 +8,13 @@ def printHelp():
   print "--process <phrase> <directory>\n"
   sys.exit(0);
 
-if len(sys.argv) < 3:
+if len( sys.argv ) < 3:
   printHelp();
 
 if sys.argv[1] == "--preprocess":
-  pass
+  root = sys.argv[2] + 'source/'
+  dirs = os.listdir( root );
+  print dirs
 elif sys.argv[2] == "--process":
   pass
 else:
