@@ -1,6 +1,10 @@
 #!/usr/bin/env python2
 
 import sys, os
+import scipy.io.wavfile
+import scipy.signal
+import numpy
+import matplotlib.pyplot as plt
 
 # voice_cmu_us_rms_arctic_clunits
 # voice_cmu_us_bdl_arctic_clunits
@@ -29,7 +33,7 @@ def generateWord( word ):
   wordsDir = os.getcwd() + '/words/'
   wavPath = wordsDir + word + '.wav'
   if os.path.isfile( wavPath ):
-    return;
+    return scipy.io.wavfile.read( wavPath );
   inputFile = open( wordsDir + "commands.scm", "w" )
   inputFile.write( '(' + voice + ')\n' )
   inputFile.write( '(lex.add.entry \'("<break>" n (((pau ) 0))))\n' )
@@ -39,7 +43,7 @@ def generateWord( word ):
 
   os.system( 'echo "" | festival_client --withlisp --prolog ' + wordsDir + 'commands.scm --tts_mode fundamental' )
 
-  print word
+  return scipy.io.wavfile.read( wavPath )
 
 if len( sys.argv ) < 3:
   printHelp();
@@ -56,12 +60,43 @@ elif sys.argv[1] == "--process":
 
   # get count of each word
   wordCount = {}
+  wordData = {}
   for word in words:
     if word in wordCount:
       wordCount[ word ] += 1
     else:
       wordCount[ word ] = 1
-      generateWord( word )
+      wordData[ word ] = generateWord( word )
+
+  # load normalized audio file
+  vidDir = os.getcwd() + '/' + sys.argv[3] + '/'
+
+  combinedAudio = scipy.io.wavfile.read( vidDir + 'combined.wav' );
+
+  startTimes = []
+  lengthTimes = []
+  for word in words:
+    print 'Correlating: ' + word
+    wordLength = len(wordData[ word ][1]) / 16000.0
+    correlation = numpy.correlate( combinedAudio[1], wordData[ word ][1] )
+
+    startTime = correlation.argmax(axis=0) / 16000.0
+    startTimes.append( startTime )
+    lengthTimes.append( wordLength )
+
+  combinedVideo = vidDir + 'combined.webm'
+  tmpDir = vidDir + 'tmp/'
+  ensureDir( tmpDir )
+  inputFile = open( tmpDir + "input.txt", "w" )
+  for x in xrange(0, len(startTimes)):
+    inputFile.write( "file '" + str(x) + ".webm'\n" )
+    os.system( 'ffmpeg -y -i ' + combinedVideo + ' -ss ' + str(startTimes[x]) + ' -t ' + str(lengthTimes[x]) + ' -c copy ' + tmpDir + str(x) + '.webm' )
+  inputFile.close()
+
+  print startTimes
+  print lengthTimes
+
+  os.system( 'ffmpeg -y -f concat -i ' + tmpDir + 'input.txt -c copy ' + vidDir + 'out.webm' )
 
 else:
   printHelp()
