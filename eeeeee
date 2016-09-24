@@ -16,6 +16,24 @@ def ensureDir( f ):
     if not os.path.exists(d):
         os.makedirs(d)
 
+def getPeaks( array, separation, length, minDif ):
+  startIndices = []
+
+  index = 0
+  last = 0
+  while(index < len(array) - length):
+    first = array[index]
+    second = array[index + length]
+    if last < first - second:
+      last = first - second
+    elif last > minDif:
+      startIndices.append(index - 2)
+      index += separation
+      last = 0
+    index += 1
+
+  return startIndices
+
 if len( sys.argv ) < 3:
   printHelp();
 
@@ -40,19 +58,22 @@ elif sys.argv[1] == "--process":
   lengthTimes = []
   while(end < len(combinedAudio[1])):
     freqs = scipy.fftpack.fft(combinedAudio[1][end-transformAmount:end], transformAmount)
-    avg = 0
+    weightedSum = 0
+    trueSum = 0;
     for x in xrange(0, transformAmount / 2):
-      avg += x * abs(freqs[x])
-    averages.append(avg)
+      psd = 1.0 / (transformAmount * 16000) * abs(freqs[x]) * abs(freqs[x]) * 2
+      weightedSum += x * psd
+      trueSum += transformAmount / 4 * psd
+    averages.append(weightedSum / trueSum)
     end += 32
 
-  peaks = scipy.signal.find_peaks_cwt(averages, numpy.arange(8000,12000, 4000))
+  peaks = getPeaks(averages, 1000 / 32, 4000 / 32, 0.2)
   print peaks
   for peak in peaks:
     startTimes.append(peak * 32 / 16000.0)
     lengthTimes.append(0.5)
-  plt.plot(averages)
-  plt.show()
+  #plt.plot(averages)
+  #plt.show()
 
   combinedVideo = vidDir + 'combined.webm'
   tmpDir = vidDir + 'tmp/'
