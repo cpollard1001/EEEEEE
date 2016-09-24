@@ -1,3 +1,19 @@
 #!/usr/bin/env python2
 
-print "Hello World"
+import sys
+
+def printHelp():
+  print "\nUsage"
+  print "--preprocess <directory>"
+  print "--process <phrase> <directory>\n"
+  sys.exit(0);
+
+if len(sys.argv) < 3:
+  printHelp();
+
+if sys.argv[1] == "--preprocess":
+  pass
+elif sys.argv[2] == "--process":
+  pass
+else:
+  printHelp()
